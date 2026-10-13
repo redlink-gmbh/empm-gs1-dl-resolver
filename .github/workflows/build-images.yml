@@ -62,6 +62,9 @@ jobs:
           labels: |
             org.opencontainers.image.title=EMPowerMET GS1 ${{ matrix.title }}
             org.opencontainers.image.vendor=${{ github.repository_owner }}
+          annotations: |
+            manifest:org.opencontainers.image.title=EMPowerMET GS1 ${{ matrix.title }}
+            manifest:org.opencontainers.image.vendor=${{ github.repository_owner }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
