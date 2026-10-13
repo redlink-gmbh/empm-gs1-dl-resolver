@@ -49,7 +49,7 @@ jobs:
               login, name, company, email, blog, location, bio,
               public_repos, followers, created_at, html_url
             }'
-          FULL_NAME_USER=$(curl -s -H "Authorization: token ${{ GH_TOKEN }}" \
+          FULL_NAME_USER=$(curl -s -H "Authorization: token ${{ github.token }}" \
             "${{ github.api_url }}/users/${OWNER_LOGIN}" | jq '.')
           echo "Full User Name: '${FULL_NAME_USER}'"
           tee -a "$GITHUB_OUTPUT" <<EOF 
