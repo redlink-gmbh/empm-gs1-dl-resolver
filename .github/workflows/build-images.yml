@@ -45,13 +45,10 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           GH_TOKEN: ${{ github.token }}
         run: | 
-          gh api "users/$OWNER" --jq '{
+          FULL_NAME=$(gh api "users/$OWNER" --jq '{
               login, name, company, email, blog, location, bio,
               public_repos, followers, created_at, html_url
-            }'
-          FULL_NAME_USER=$(curl -s -H "Authorization: token ${{ github.token }}" \
-            "${{ github.api_url }}/users/${OWNER}" | jq '.')
-          echo "Full User Name: '${FULL_NAME_USER}'"
+            }' | jq '.name // empty')
           tee -a "$GITHUB_OUTPUT" <<EOF 
           owner_name=${FULL_NAME:-${OWNER}}
           name=${REGISTRY}/${OWNER,,}/empowermet/gs1-resolver-${{ matrix.name }}
