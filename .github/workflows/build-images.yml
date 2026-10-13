@@ -45,9 +45,11 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: | 
           FULL_NAME_USER=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/users/${OWNER_LOGIN}" | jq -r '.name // empty')
+            "${{ github.api_url }}/users/${OWNER_LOGIN}" | jq -r '.name // empty')
+          echo "Full User Name: '${FULL_NAME_USER}'"
           FULL_NAME_ORG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/orgs/${OWNER_LOGIN}" | jq -r '.company // empty')
+            "${{ github.api_url }}/orgs/${OWNER_LOGIN}" | jq -r '.company // empty')
+          echo "Full Organization Name: '${FULL_NAME_ORG}'"
           FULL_NAME="${FULL_NAME_USER:-${FULL_NAME_ORG}}"
           tee -a "$GITHUB_OUTPUT" <<EOF 
           owner_name=${FULL_NAME:-${OWNER}}
