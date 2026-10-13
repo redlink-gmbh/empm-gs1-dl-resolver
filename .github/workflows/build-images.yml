@@ -1,0 +1,95 @@
+name: Build and publish images
+
+# Builds the four service images and pushes them to the GitHub Container
+# Registry. Authentication uses the automatic GITHUB_TOKEN, so no secret
+# has to be configured.
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build ${{ matrix.title }} Docker Image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: database-server
+            title: Database
+            context: ./database_server
+          - name: data-entry-server
+            title: Data Entry Server
+            context: ./data_entry_server
+          - name: web-server
+            title: Web Server
+            context: ./web_server
+          - name: frontend-proxy-server
+            title: Frontend Proxy
+            context: ./frontend_proxy_server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Image references must be lowercase, the owner name may not be.
+      - name: Generate Image Name
+        id: info
+        env:
+          OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ github.token }}
+        run: | 
+          FULL_NAME=$(gh api "users/$OWNER" --jq '{
+              login, name, company, email, blog, location, bio,
+              public_repos, followers, created_at, html_url
+            }' | jq -r '.name // empty')
+          tee -a "$GITHUB_OUTPUT" <<EOF 
+          owner_name=${FULL_NAME:-${OWNER}}
+          name=${REGISTRY}/${OWNER,,}/empowermet/gs1-resolver-${{ matrix.name }}
+          EOF
+      - uses: docker/setup-buildx-action@v3
+        name: Set up Docker Buildx
+
+      - uses: docker/login-action@v3
+        name: Login to GitHub Container Registry
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Tags and Image Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.info.outputs.name }}
+          labels: |
+            org.opencontainers.image.title=EMPowerMET GS1 ${{ matrix.title }}
+            org.opencontainers.image.vendor=${{ steps.info.outputs.owner_name }}
+          annotations: |
+            org.opencontainers.image.title=EMPowerMET GS1 ${{ matrix.title }}
+            org.opencontainers.image.vendor=${{ steps.info.outputs.owner_name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,prefix=v,pattern={{version}},match=v(\d.\d.\d)$
+            type=semver,prefix=v,pattern={{major}}.{{minor}},match=v(\d.\d.\d)$
+            type=semver,prefix=v,pattern={{major}},match=v(\d.\d.\d)$
+
+      - uses: docker/build-push-action@v6
+        name: Build and push ${{ matrix.title }} Docker Image
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Separate cache scope per service, otherwise the matrix jobs
+          # overwrite each other's cache.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
