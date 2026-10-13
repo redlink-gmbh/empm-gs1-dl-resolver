@@ -6,7 +6,7 @@ name: Build and publish images
 
 on:
   push:
-    branches: [main]
+    branches:
   workflow_dispatch:
 
 env:
@@ -55,14 +55,19 @@ jobs:
         with:
           images: ${{ steps.img.outputs.name }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
+            type=semver,prefix=v,pattern={{version}},match=v(\d.\d.\d)$
+            type=semver,prefix=v,pattern={{major}}.{{minor}},match=v(\d.\d.\d)$
+            type=semver,prefix=v,pattern={{major}},match=v(\d.\d.\d)$
 
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          platforms: linux/amd64
-          push: true
+          platforms: 
+            - linux/amd64
+            - linux/arm64
+          push: ${{ github.ref_name == 'main' || github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Separate cache scope per service, otherwise the matrix jobs
